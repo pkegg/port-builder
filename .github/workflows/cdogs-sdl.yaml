@@ -1,4 +1,4 @@
-name: ci
+name: cdogs-sdl-dockerfile
 
 on:
   push:
