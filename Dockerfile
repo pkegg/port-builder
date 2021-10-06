@@ -1,7 +1,7 @@
 FROM debian:buster
 
 
-RUN apt update && apt -y install build-essential \
+RUN apt update && echo install build-essential \
                                  git \
                                  wget \
                                  libdrm-dev \
