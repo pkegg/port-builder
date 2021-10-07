@@ -49,6 +49,7 @@ jobs:
         with:
           platforms: linux/arm64
           context: cdogs-sdl
+          file: Dockerfile.game
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
