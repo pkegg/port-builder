@@ -3,7 +3,7 @@ name: cdogs-sdl-dockerfile
 on:
   push:
     paths:
-      - 'cdogs-sdl/Dockerfile'
+      - 'cdogs-sdl/Dockerfile.game'
   workflow_dispatch:
 env:
   REGISTRY: ghcr.io
