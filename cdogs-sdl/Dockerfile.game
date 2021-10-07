@@ -1,3 +1,3 @@
-FROM ghcr.io/pkegg/cdogs-sdl-builder:main
+FROM ghcr.io/pkegg/port-builder/cdogs-sdl-builder:main
 
 RUN ls
