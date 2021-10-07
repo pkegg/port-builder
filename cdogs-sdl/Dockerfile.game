@@ -1,0 +1,3 @@
+FROM ghcr.io/pkegg/cdogs-sdl:main
+
+RUN ls
