@@ -1,3 +1,5 @@
 FROM ghcr.io/pkegg/port-builder/cdogs-sdl-builder:main
 
-RUN ls
+RUN git clone https://github.com/cxong/cdogs-sdl
+
+RUN cd cdogs-sdl && make.sh
