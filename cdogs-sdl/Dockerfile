@@ -1,3 +1,8 @@
 FROM ghcr.io/pkegg/port-builder:main
 
-RUN apt update && apt-get install -y make libgtk-3-dev python3-protobuf protobuf-compiler libsdl2-image-dev libsdl2-mixer-dev
+RUN   rm -rf /var/lib/apt/lists/* && \
+apt update && apt-get install -y libgtk-3-dev \
+                                     python3-protobuf \
+                                     protobuf-compiler \
+                                     libsdl2-image-dev \
+                                     libsdl2-mixer-dev
