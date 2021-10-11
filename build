@@ -3,6 +3,8 @@ set -e
 PACKAGE="$1"
 PACKAGE_MK="${PACKAGE}/package.info"
 SOURCE_DIR="${PACKAGE}/source"
+export CCACHE_DIR="../.ccache"
+
 if [[ -z "$PACKAGE" ]]; then
   echo "Please specify package: $0 <package>"
   exit 1
@@ -45,10 +47,14 @@ else
   exit 1
 fi
 
+if [[ -z "$DOCKER_PLATFORM" ]]; then
+  DOCKER_PLATFORM="linux/arm64/v8"
+fi
+
 DOCKER_IMAGE=pkegg/port-builder/${PACKAGE}
 pushd "${PACKAGE}"
 if [[ -f Dockerfile ]]; then
-  docker buildx build --pull --platform linux/arm64/v8 --tag ${DOCKER_IMAGE} --load .
+  docker buildx build --pull --platform ${DOCKER_PLATFORM} --tag "${DOCKER_IMAGE}" --load .
 fi
 popd
 
@@ -74,11 +80,9 @@ if [ -t 0 ]; then
   INTERACTIVE="-it"
 fi
 
-
 pushd "${SOURCE_DIR}"
 # Get .env file ready
 env | grep "=" > .env
-echo ${SUDO} ${DOCKER_CMD} run ${PODMAN_ARGS} ${INTERACTIVE} --env-file .env --rm --user ${UID}:${GID} -v ${PWD}/..:${DOCKER_WORK_DIR} -w ${DOCKER_WORK_DIR} ${DOCKER_IMAGE} bash -c "cd source && ../build"
 
-${SUDO} ${DOCKER_CMD} run ${PODMAN_ARGS} ${INTERACTIVE} --env-file .env --rm --user ${UID}:${GID} -v ${PWD}/..:${DOCKER_WORK_DIR} -w ${DOCKER_WORK_DIR} ${DOCKER_IMAGE} bash -c "cd source && ../build"
+${SUDO} ${DOCKER_CMD} run --platform ${DOCKER_PLATFORM} ${PODMAN_ARGS} ${INTERACTIVE} --env-file .env --rm --user ${UID}:"${GID}" -v "${PWD}/..:${DOCKER_WORK_DIR}" -w ${DOCKER_WORK_DIR}/source ${DOCKER_IMAGE} bash -c "../build"
 popd
