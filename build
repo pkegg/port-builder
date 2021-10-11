@@ -118,10 +118,16 @@ function build_package() {
 
 PACKAGE=$1
 #build subpackages first
+shopt -s globstar nullglob
 for PACKAGE_INFO in "${PACKAGE}"/**/package.info; do
+  
   PKG=$(dirname "${PACKAGE_INFO}")
-  echo "${PKG}"
+  echo "subpackage: ${PKG}"
+  if [[ "${PKG}" == "${PACKAGE}" ]]; then
+    continue
+  fi
   build_package "${PKG}"
+  
 done
 echo "building package: $1"
 build_package "$1"

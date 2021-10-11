@@ -5,7 +5,9 @@ for directory in ${DIR}/*/; do
   directory=${directory%/}
   echo "directory: $directory"
   if [ -f "${directory}/package.info" ]; then
-    ${DIR}/build "$(basename ${directory})"
+    TO_BUILD="$(basename ${directory})"
+    echo "build-all: building: ${TO_BUILD}"
+    ${DIR}/build "${TO_BUILD}"
   else
     echo "No package.info found for: ${directory}"
   fi
