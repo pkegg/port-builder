@@ -37,5 +37,6 @@ RUN apt-get update && apt-get -y install build-essential \
                                  mercurial-common \
                                  libgbm-dev \
                                  libsdl2-ttf-2.0-0 \
-                                 libsdl2-ttf-dev
+                                 libsdl2-ttf-dev \
+                                 ccache
 
