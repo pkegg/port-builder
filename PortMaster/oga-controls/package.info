@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2021 pkegg, Portmaster
+
+PKG_NAME="oga-controls"
+PKG_VERSION="13da587f264b419488656479d88eddd9c8feafb8"
+PKG_SITE="https://github.com/christianhaitian/oga_controls"
+
+PKG_URL="$PKG_SITE.git"
+GET_HANDLER_SUPPORT="git"

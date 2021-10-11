@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2021 pkegg, Portmaster
+
+PKG_NAME="Moonlight"
+PKG_VERSION="81322a2b91aaaa18bdbb0be01b2c245ed000abe4"
+PKG_SITE="https://github.com/moonlight-stream/moonlight-embedded"
+PKG_URL="$PKG_SITE.git"
+GET_HANDLER_SUPPORT="git"

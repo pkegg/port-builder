@@ -1,0 +1,12 @@
+#! /bin/bash
+DIR="$(realpath $(dirname "${BASH_SOURCE[0]}"))"  # Get the directory name
+
+for directory in ${DIR}/*/; do
+  directory=${directory%/}
+  echo "directory: $directory"
+  if [ -f "${directory}/package.info" ]; then
+    ${DIR}/build "$(basename ${directory})"
+  else
+    echo "No package.info found for: ${directory}"
+  fi
+done

@@ -1,0 +1,12 @@
+#! /bin/bash
+set -e
+
+# assumptions
+# - that git/download is checked out in 'source'
+# - the current directory is source
+DCMAKE_INSTALL_PREFIX=$(realpath "${PWD}/../pkg")
+export DCMAKE_INSTALL_PREFIX
+cmake -GNinja -DCMAKE_INSTALL_PREFIX:PATH="${DCMAKE_INSTALL_PREFIX}" .
+
+mkdir -p ../pkg
+ninja install

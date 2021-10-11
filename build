@@ -1,88 +1,127 @@
 #!/bin/bash
 set -e
-PACKAGE="$1"
-PACKAGE_MK="${PACKAGE}/package.info"
-SOURCE_DIR="${PACKAGE}/source"
-export CCACHE_DIR="../.ccache"
 
-if [[ -z "$PACKAGE" ]]; then
-  echo "Please specify package: $0 <package>"
-  exit 1
-elif [[ ! -d "$PACKAGE" ]]; then
-  echo "Please specify a package directory that exists.  Not: $PACKAGE"
-  exit 1
-elif [[ ! -f "$PACKAGE_MK" ]]; then
-  echo "No package.mk found at: $PACKAGE_MK"
-  exit 1
-fi
+function build_package() {
+  local PACKAGE="$1"
+  local PACKAGE_MK="${PACKAGE}/package.info"
+  local SOURCE_DIR="${PACKAGE}/source"
+  local SOURCE_DOCKER_DIR=source
+  local BUILD_DIR=".."
+  export CCACHE_DIR="../.ccache"
+  
+  if [[ -z "$PACKAGE" ]]; then
+    echo "Please specify package: $0 <package>"
+    exit 1
+  elif [[ ! -d "$PACKAGE" ]]; then
+    echo "Please specify a package directory that exists.  Not: $PACKAGE"
+    exit 1
+  elif [[ ! -f "$PACKAGE_MK" ]]; then
+    echo "No package.mk found at: $PACKAGE_MK"
+    exit 1
+  fi
+  GET_HANDLER_SUPPORT=""
+  PKG_VERSION=""
+  PKG_URL=""
+  DOCKER_PLATFORM=""
+  source "${PACKAGE_MK}"
+  
+  if [[ "${GET_HANDLER_SUPPORT}" == "git" ]]; then
+  
+     if [[ -a "${PKG_VERSION}" ]]; then
+       echo "${PKG_VERSION} required"
+       exit 1
+     fi
+     ALREADY_CLONED=false
+     if [[ -d "${SOURCE_DIR}" ]]; then
+        pushd "${SOURCE_DIR}" &> /dev/null
+        if [[ "$(git config --get remote.origin.url)" == "$PKG_URL" ]]; then
+          git fetch
+          ALREADY_CLONED="true"
+        fi
+        popd &> /dev/null
+     fi
+     if [[ "$ALREADY_CLONED" == "false" ]]; then
+        rm -rf "${SOURCE_DIR}"
+        git clone --recursive "${PKG_URL}" "${SOURCE_DIR}"
+     fi
+     
+  
+     echo "Checking out: ${PKG_VERSION}"
+     pushd "${SOURCE_DIR}" &> /dev/null
+     git submodule update --init --recursive
+     git clean -f
+     git checkout "${PKG_VERSION}"
+     popd &> /dev/null
+  elif [[ -z "${GET_HANDLER_SUPPORT}" ]]; then
+    SOURCE_DIR="${PACKAGE}"
+    SOURCE_DOCKER_DIR=""
+    BUILD_DIR="."
+    echo "No GET_HANDLER_SUPPORT.  Assuming all local files"
+  else
+    echo "Handler: '${GET_HANDLER_SUPPORT}' not found"
+    exit 1
+  fi
+  
+  if [[ -z "$DOCKER_PLATFORM" ]]; then
+    DOCKER_PLATFORM="linux/arm64/v8"
+  fi
+  
+  
 
-source "${PACKAGE_MK}"
+  if [[ -f "${PACKAGE}/Dockerfile" ]]; then
+    echo "${PACKAGE}/Dockerfile exists"
+    DOCKER_IMAGE=pkegg/port-builder/${PACKAGE}
+  
+    #make lower case as docker must be lowers
+    DOCKER_IMAGE=$(echo "$DOCKER_IMAGE" | tr '[:upper:]' '[:lower:]')
 
-if [[ -z "${GET_HANDLER_SUPPORT}" || "${GET_HANDLER_SUPPORT}" == "git" ]]; then
+    pushd "${PACKAGE}" &> /dev/null
+    docker buildx build --pull --platform ${DOCKER_PLATFORM} --tag "${DOCKER_IMAGE}" --load .
+    popd &> /dev/null
+  else
+    echo "${PACKAGE}/Dockerfile does not exist"
 
-   if [[ -a "${PKG_VERSION}" ]]; then
-     echo "${PKG_VERSION} required"
-     exit 1
-   fi
-   ALREADY_CLONED=false
-   if [[ -d "${SOURCE_DIR}" ]]; then
-      pushd "${SOURCE_DIR}"
-      if [[ "$(git config --get remote.origin.url)" == "$PKG_URL" ]]; then
-        git fetch
-        ALREADY_CLONED="true"
-      fi
-      popd
-   fi
-   if [[ "$ALREADY_CLONED" == "false" ]]; then
-      rm -rf "${SOURCE_DIR}"
-      git clone "${PKG_URL}" "${SOURCE_DIR}"
-   fi
-   echo "Checking out: ${PKG_VERSION}"
-   pushd "${SOURCE_DIR}"
-   git clean -f
-   git checkout "${PKG_VERSION}"
-   popd
-else
-  echo "Handler: ${GET_HANDER_SUPPORT} not found"
-  exit 1
-fi
+    DOCKER_IMAGE=ghcr.io/pkegg/port-builder:main
+  fi
+  
+  if [[ -z "${DOCKER_WORK_DIR}" ]]; then
+    DOCKER_WORK_DIR=/work
+  fi
+  
+  GID=$(id -g)
+  DOCKER_CMD=docker  #TBD: podman support
+  
+  # Podman requires some extra args (`--userns=keep-id` and `--security-opt=label=disable`).  Set those args if using podman
+  #PODMAN_ARGS:= $(shell if ! which docker 2>/dev/null 1>/dev/null && which podman 2> /dev/null 1> /dev/null; then echo "--userns=keep-id --security-opt=label=disable -v /proc/mounts:/etc/mtab"; fi)
+  
+  # Use 'sudo' if docker ps doesn't work.  In theory, other things than missing sudo could cause this.  But sudo needed is a common issue and easy to fix.
+  SUDO=""
+  if ! docker ps -q 2> /dev/null 1> /dev/null && sudo docker ps -q> /dev/null; then
+   SUDO="sudo"
+  fi
+  
+  # Launch docker as interactive if this is an interactive shell (allows ctrl-c for manual and running non-interactive - aka: build server)
+  INTERACTIVE=""
+  if [ -t 0 ]; then
+    INTERACTIVE="-it"
+  fi
+  
+  pushd "${SOURCE_DIR}" &> /dev/null
+  # Get .env file ready
+  env | grep "=" > .env
+  
+  echo "building ${PACKAGE} with docker..."
+  ${SUDO} ${DOCKER_CMD} run --platform ${DOCKER_PLATFORM} ${PODMAN_ARGS} ${INTERACTIVE} --env-file .env --rm --user ${UID}:"${GID}" -v "${PWD}/${BUILD_DIR}:${DOCKER_WORK_DIR}" -w "${DOCKER_WORK_DIR}/${SOURCE_DOCKER_DIR}" ${DOCKER_IMAGE} bash -c "${BUILD_DIR}/build"
+  echo "done"
+  popd &> /dev/null
+}
 
-if [[ -z "$DOCKER_PLATFORM" ]]; then
-  DOCKER_PLATFORM="linux/arm64/v8"
-fi
-
-DOCKER_IMAGE=pkegg/port-builder/${PACKAGE}
-pushd "${PACKAGE}"
-if [[ -f Dockerfile ]]; then
-  docker buildx build --pull --platform ${DOCKER_PLATFORM} --tag "${DOCKER_IMAGE}" --load .
-fi
-popd
-
-if [[ -z "${DOCKER_WORK_DIR}" ]]; then
-  DOCKER_WORK_DIR=/work
-fi
-
-GID=$(id -g)
-DOCKER_CMD=docker  #TBD: podman support
-
-# Podman requires some extra args (`--userns=keep-id` and `--security-opt=label=disable`).  Set those args if using podman
-#PODMAN_ARGS:= $(shell if ! which docker 2>/dev/null 1>/dev/null && which podman 2> /dev/null 1> /dev/null; then echo "--userns=keep-id --security-opt=label=disable -v /proc/mounts:/etc/mtab"; fi)
-
-# Use 'sudo' if docker ps doesn't work.  In theory, other things than missing sudo could cause this.  But sudo needed is a common issue and easy to fix.
-SUDO=""
-if ! docker ps -q 2> /dev/null 1> /dev/null && sudo docker ps -q> /dev/null; then
- SUDO="sudo"
-fi
-
-# Launch docker as interactive if this is an interactive shell (allows ctrl-c for manual and running non-interactive - aka: build server)
-INTERACTIVE=""
-if [ -t 0 ]; then
-  INTERACTIVE="-it"
-fi
-
-pushd "${SOURCE_DIR}"
-# Get .env file ready
-env | grep "=" > .env
-
-${SUDO} ${DOCKER_CMD} run --platform ${DOCKER_PLATFORM} ${PODMAN_ARGS} ${INTERACTIVE} --env-file .env --rm --user ${UID}:"${GID}" -v "${PWD}/..:${DOCKER_WORK_DIR}" -w ${DOCKER_WORK_DIR}/source ${DOCKER_IMAGE} bash -c "../build"
-popd
+PACKAGE=$1
+#build subpackages first
+for PACKAGE_INFO in "${PACKAGE}"/**/package.info; do
+  PKG=$(dirname "${PACKAGE_INFO}")
+  echo "${PKG}"
+  build_package "${PKG}"
+done
+echo "building package: $1"
+build_package "$1"
