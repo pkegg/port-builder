@@ -1,10 +1,15 @@
 #! /bin/bash
 DIR="$(realpath $(dirname "${BASH_SOURCE[0]}"))"  # Get the directory name
 
+# Build portmaster first as other things depend on it's libraries
+${DIR}/build PortMaster
+
 for directory in ${DIR}/*/; do
   directory=${directory%/}
   echo "directory: $directory"
-  if [ -f "${directory}/package.info" ]; then
+  if [ "$(basename $directory)" == "PortMaster" ]; then
+    echo "Already built PortMaster"
+  elif [ -f "${directory}/package.info" ]; then
     TO_BUILD="$(basename ${directory})"
     echo "build-all: building: ${TO_BUILD}"
     ${DIR}/build "${TO_BUILD}"

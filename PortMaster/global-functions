@@ -1,0 +1,108 @@
+#! /bin/bash
+# Common functions used across ports
+#  - Will be copied into the package next to run.sh
+
+function get_device() {
+  local param_device="unknown"
+  if [[ -e "/dev/input/by-path/platform-ff300000.usb-usb-0:1.2:1.0-event-joystick" ]]; then
+    #rg351v and rg351p
+    if [[ -e "/dev/input/event3" ]]; then #rg351p only has "event2"
+      param_device="anbernic-rg351v"
+    else
+      param_device="anbernic-rg351p"
+    fi
+  elif [[ -e "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick" ]]; then
+    if grep -q /etc/emulationstation/es_input.cfg "190000004b4800000010000001010000"; then
+      param_device="oga"
+  	else
+  	  param_device="rk2020"
+  	fi
+  elif [[ -e "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick" ]]; then
+    if [[ -e "/dev/input/by-path/platform-rg351-keys-event" ]]; then
+      param_device="anbernic-rg351mp"
+    else
+      param_device="ogs"
+    fi
+  # TODO: fixme
+  #else
+  #  param_device="chi"
+  fi
+  echo "${param_device}"
+}
+
+function get_os() {
+  local param_os="unknown"
+  if [[ -f "/boot/rk3326-rg351v-linux.dtb" ]]; then
+    param_os="ArkOS"
+  elif [[ -e "/storage/.config/.OS_ARCH" ]]; then
+    param_os="351ELEC"
+  elif [[ $(grep "title=" "/usr/share/plymouth/themes/text.plymouth") == *"TheRA"* ]]; then
+    param_os="TheRA"
+  fi
+  echo "${param_os}"
+}
+
+function get_tools_dir() {
+  os=$(get_os)
+  local toolsfolderloc="/opt/tools"
+  if [[ "351ELEC" == "${os}" ]]; then
+    toolsfolderloc="/storage/roms/ports"
+  elif [[ "TheRA" == "${os}" ]]; then
+    toolsfolderloc="/opt/system/Tools"
+  elif [[ "ArkOS" == "${os}" ]]; then
+    toolsfolderloc="/opt/tools"
+  fi
+  echo "${toolsfolderloc}"
+}
+
+function get_roms_dir() {
+  local os
+  os=$(get_os)
+  local toolsfolderloc="/opt/roms"
+  if [[ "351ELEC" == "${os}" ]]; then
+    toolsfolderloc="/storage/roms/"
+  elif [[ "TheRA" == "${os}" ]]; then
+    toolsfolderloc="/opt/system/Roms"
+  elif [[ "ArkOS" == "${os}" ]]; then
+    toolsfolderloc="/opt/roms"
+  fi
+  echo "${toolsfolderloc}"
+}
+
+function get_console() {
+  local os
+  os=$(get_os)
+  local console="/dev/tty0"
+  if [[ "unknown" == "${os}" ]]; then
+    console="/dev/stderr"
+  fi
+  echo "${console}"
+}
+
+function get_output() {
+
+  local output="/dev/stderr"
+  echo "${output}"
+}
+
+function get_hotkey() {
+  local hotkey="Select"
+  local device
+  device="$(get_device)"
+
+  if [[ "${device}" == "oga" ]]; then
+	  hotkey="Minus"
+  elif [[ "${device}" == "chi" ]]; then
+    hotkey="1"
+  fi
+  echo "${hotkey}"
+}
+
+function in_china() {
+  ISITCHINA=$(curl -s --connect-timeout 30 -m 60 http://demo.ip-api.com/json | $GREP -Po '"country":.*?[^\\]"')
+  local in_china=false
+  if [[ "$ISITCHINA" == "\"country\":\"China\"" ]]; then
+    in_china=true
+  fi
+  echo "${in_china}"
+}
